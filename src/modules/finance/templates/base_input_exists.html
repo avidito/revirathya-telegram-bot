@@ -1,0 +1,6 @@
+<b>Finance - Expense ({{ command | capitalize }})</b>
+
+{% for row in data -%}
+<b>{{ row.label }}</b>: {{ row.value }}
+{% endfor %}
+Please input expense {{ params }}:

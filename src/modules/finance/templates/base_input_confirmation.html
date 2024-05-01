@@ -1,0 +1,9 @@
+<b>Finance - Expense ({{ command | capitalize }})</b>
+
+{% for row in data -%}
+<b>{{ row.label }}</b>: {{ row.value }}
+{% endfor %}
+{% if confirm == "yes" %}Expenses successfully {{ command }}.
+{%- elif confirm == "no" %}Expenses {{ command }} cancelled.
+{%- else %}Are you sure you want to {{ command }} this expense?
+{%- endif %}
