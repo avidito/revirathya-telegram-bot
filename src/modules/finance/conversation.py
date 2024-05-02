@@ -18,6 +18,7 @@ from telegram.ext import (
     filters,
 )
 
+from src.components import calendar
 from src.helper.bot import BotReplyMarkupHelper
 
 
@@ -25,6 +26,7 @@ from src.helper.bot import BotReplyMarkupHelper
 class FinanceConversation:
     __reply_h: BotReplyMarkupHelper
     __tz: pytz.timezone
+    __calendar_c: calendar.CalenderComponent
     __template_dir: str
 
     # Constant
@@ -38,12 +40,16 @@ class FinanceConversation:
             "INPUT_DESCRIPTION",
             "INPUT_AMOUNT",
             "INPUT_CONFIRMATION",
+            "CALENDAR_CONTROL",
+            "CALENDAR_END_CONTROL",
         ])
     }
 
     def __init__(self, reply_h: BotReplyMarkupHelper, tz: pytz.timezone):
         self.__reply_h = reply_h
         self.__tz = tz
+
+        self.__calendar_c = calendar.CalenderComponent()
         self.__template_dir = os.path.join(os.path.dirname(__file__), "templates")
     
 
@@ -58,7 +64,14 @@ class FinanceConversation:
                     CallbackQueryHandler(self.__input_date)
                 ],
                 FinanceConversation.STATES["INPUT_DATE"]: [
-                    CallbackQueryHandler(self.__input_budget_group, pattern="^date=")
+                    CallbackQueryHandler(self.__input_budget_group, pattern="^calendar-date="),
+                    self.__calendar_c.create_conversation(
+                        pattern="gen-calendar",
+                        control_state=FinanceConversation.STATES["CALENDAR_CONTROL"],
+                        end_state=FinanceConversation.STATES["CALENDAR_END_CONTROL"],
+                        parent_state=FinanceConversation.STATES["INPUT_DATE"],
+                        fallback_func=self.cancel,
+                    )
                 ],
                 FinanceConversation.STATES["INPUT_BUDGET_GROUP"]: [
                     CallbackQueryHandler(self.__input_budget_type, pattern="^budget-group=")
@@ -111,7 +124,8 @@ class FinanceConversation:
 
         # TMP
         inline_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Today", callback_data=f"date={datetime.now(self.__tz).strftime('%Y-%m-%d')}")]
+            [InlineKeyboardButton("Today", callback_data=f"calendar-date={datetime.now(self.__tz).strftime('%Y-%m-%d')}")],
+            [InlineKeyboardButton("Choose Date", callback_data=f"gen-calendar")]
         ])
         
         await query.answer()
