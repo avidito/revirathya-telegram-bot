@@ -5,7 +5,7 @@ from telegram.ext import (
 
 from src.helper.config import CONFIG
 from src.helper.log import get_logger
-from src.modules import register_conversation
+from src.handlers import register_conversation
 
 
 # Main

@@ -2,7 +2,7 @@ import pytz
 
 from telegram.ext import Application
 
-from src.modules.finance.conversation import FinanceConversation
+from src.handlers.finance.conversation import FinanceConversation
 from src.helper.bot import BotReplyMarkupHelper
 
 
