@@ -15,7 +15,7 @@ class Conversation:
     
 
     def register(self, app: Application):
-        self.__finance_conv.register_conversation(app)
+        app.add_handler(self.__finance_conv.get_conversation())
 
 
 # Register

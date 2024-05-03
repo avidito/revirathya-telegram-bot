@@ -18,7 +18,7 @@ from telegram.ext import (
     filters,
 )
 
-from src.components import calendar
+from src.components import calendar, numpad
 from src.helper.bot import BotReplyMarkupHelper
 
 
@@ -27,6 +27,7 @@ class FinanceConversation:
     __reply_h: BotReplyMarkupHelper
     __tz: pytz.timezone
     __calendar_c: calendar.CalenderComponent
+    __numpad_c: numpad.NumpadComponent
     __template_dir: str
 
     # Constant
@@ -42,6 +43,8 @@ class FinanceConversation:
             "INPUT_CONFIRMATION",
             "CALENDAR_CONTROL",
             "CALENDAR_END_CONTROL",
+            "NUMPAD_CONTROL",
+            "NUMPAD_END_CONTROL",
         ])
     }
 
@@ -50,16 +53,17 @@ class FinanceConversation:
         self.__tz = tz
 
         self.__calendar_c = calendar.CalenderComponent()
+        self.__numpad_c = numpad.NumpadComponent()
         self.__template_dir = os.path.join(os.path.dirname(__file__), "templates")
     
 
-    def register_conversation(self, app: Application):
+    def get_conversation(self) -> ConversationHandler:
         # Define Flow
         conv_handler = ConversationHandler(
-            entry_points = [
+            entry_points=[
                 CommandHandler("finance", self.__start),
             ],
-            states = {
+            states={
                 FinanceConversation.STATES["INPUT_ACTION"]: [
                     CallbackQueryHandler(self.__input_date)
                 ],
@@ -69,7 +73,7 @@ class FinanceConversation:
                         pattern="gen-calendar",
                         control_state=FinanceConversation.STATES["CALENDAR_CONTROL"],
                         end_state=FinanceConversation.STATES["CALENDAR_END_CONTROL"],
-                        parent_state=FinanceConversation.STATES["INPUT_DATE"],
+                        after_conv_state=FinanceConversation.STATES["INPUT_DATE"],
                         fallback_func=self.cancel,
                     )
                 ],
@@ -83,19 +87,24 @@ class FinanceConversation:
                     MessageHandler(filters.Regex(".*"), self.__input_amount)
                 ],
                 FinanceConversation.STATES["INPUT_AMOUNT"]: [
-                    CallbackQueryHandler(self.__input_confirmation, pattern="^amount=")
+                    CallbackQueryHandler(self.__input_confirmation, pattern="^numpad-amount="),
+                    self.__numpad_c.create_conversation(
+                        pattern="gen-numpad",
+                        control_state=FinanceConversation.STATES["NUMPAD_CONTROL"],
+                        end_state=FinanceConversation.STATES["NUMPAD_END_CONTROL"],
+                        after_conv_state=FinanceConversation.STATES["INPUT_AMOUNT"],
+                        fallback_func=self.cancel,
+                    )
                 ],
                 FinanceConversation.STATES["INPUT_CONFIRMATION"]: [
                     CallbackQueryHandler(self.__echo, pattern="^confirm=")
                 ],
             },
-            fallbacks = [
+            fallbacks=[
                 CommandHandler("cancel", self.cancel)
             ]
         )
-
-        # Register
-        app.add_handler(conv_handler)
+        return conv_handler
 
 
     # Handler
@@ -109,8 +118,8 @@ class FinanceConversation:
 
         await update.message.reply_text(
             text = self.__reply_h.render_text(self.__template_dir, "base_init"),
-            parse_mode = ParseMode.HTML,
-            reply_markup = inline_keyboard,
+            parse_mode=ParseMode.HTML,
+            reply_markup=inline_keyboard,
         )
         return FinanceConversation.STATES["INPUT_ACTION"]
 
@@ -138,8 +147,8 @@ class FinanceConversation:
                     "params": "date",
                 }
             ),
-            parse_mode = ParseMode.HTML,
-            reply_markup = inline_keyboard
+            parse_mode=ParseMode.HTML,
+            reply_markup=inline_keyboard
         )
 
         return FinanceConversation.STATES["INPUT_DATE"]
@@ -243,7 +252,7 @@ class FinanceConversation:
 
         # TMP
         inline_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Rp 10.0000,00", callback_data=f"amount=10000")]
+            [InlineKeyboardButton("Custom Amount", callback_data=f"gen-numpad")],
         ])
 
         await context.bot.edit_message_text(
@@ -267,9 +276,9 @@ class FinanceConversation:
     async def __input_confirmation(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         query = update.callback_query
 
-        confirm = query.data.split("=")[1]
-        context.user_data["confirm"] = confirm
-
+        amount = query.data.split("=")[1]
+        context.user_data["data"].append({"key": "amount", "label": "Amount", "value": amount})
+        
         inline_keyboard = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("Yes", callback_data=f"confirm=yes"),
@@ -308,7 +317,7 @@ class FinanceConversation:
                     **context.user_data,
                 }
             ),
-            parse_mode = ParseMode.HTML,
+            parse_mode=ParseMode.HTML,
         )
 
         return ConversationHandler.END

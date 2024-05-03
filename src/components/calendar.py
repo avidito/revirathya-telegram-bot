@@ -20,14 +20,14 @@ from telegram.ext import (
 class CalenderComponent:
     CONTROL_STATE: Optional[int]
     END_STATE: Optional[int]
-    PARENT_STATE: Optional[int]
+    AFTER_CONV_STATE: Optional[int]
     opening_message: str
     validation_message: str
 
     def __init__(self):
         self.CONTROL_STATE = None
         self.END_STATE = None
-        self.PARENT_STATE = None
+        self.AFTER_CONV_STATE = None
         self.opening_message = "Please select date:"
         self.validation_message = "You select '{date}'"
 
@@ -37,7 +37,8 @@ class CalenderComponent:
         c_factory = partial(self.__create_callback, year, month)
 
         # Header
-        header = [InlineKeyboardButton(f"{calendar.month_name[month]} {year}", callback_data=c_factory(mode="ignore"))]
+        month_year_fmt = f"{calendar.month_name[month]} {year}"
+        header = [InlineKeyboardButton(month_year_fmt, callback_data=c_factory(mode="ignore"))]
 
         # Body
         week_header = [
@@ -54,6 +55,8 @@ class CalenderComponent:
             for week in calendar.monthcalendar(year, month)
         ]
 
+        body = [week_header, *week_body]
+
         # Footer
         footer = [
             InlineKeyboardButton("<", callback_data=c_factory(mode="prev")),
@@ -63,8 +66,7 @@ class CalenderComponent:
         # Calendar
         calendar_component = InlineKeyboardMarkup([
             header,
-            week_header,
-            *week_body,
+            *body,
             footer,
         ])
 
@@ -75,14 +77,14 @@ class CalenderComponent:
             pattern: str,
             control_state: int,
             end_state: int,
-            parent_state: int,
+            after_conv_state: int,
             fallback_func: callable,
-            handler_type: str = "callback-query"
+            handler_type: str = "callback-query",
         ) -> ConversationHandler:
         # Init State Params
         self.CONTROL_STATE = control_state
         self.END_STATE = end_state
-        self.PARENT_STATE = parent_state
+        self.AFTER_CONV_STATE = after_conv_state
 
         # Init Conversation
         entry_point = CallbackQueryHandler(self.__init_conv, pattern=pattern) if (handler_type == "callback-query") else None
@@ -96,10 +98,10 @@ class CalenderComponent:
                 ]
             },
             fallbacks=[
-                CommandHandler("cancel", fallback_func)
+                CommandHandler("cancel", fallback_func),
             ],
-            map_to_parent = {
-                self.END_STATE: self.PARENT_STATE,
+            map_to_parent={
+                self.END_STATE: self.AFTER_CONV_STATE,
             }
         )
 
@@ -121,18 +123,18 @@ class CalenderComponent:
         return ";".join(map(str, callback_items))
     
 
-    # Private - Handler
+    # Private - Handlers
     async def __init_conv(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         query = update.callback_query
         
         year, month = map(int, datetime.now().strftime("%Y-%m").split("-"))
-        cal_keyboard = self.create_calendar(year, month)
+        calendar_keyboard = self.create_calendar(year, month)
 
         await query.answer()
         await query.edit_message_text(
             text=self.opening_message,
             parse_mode=ParseMode.HTML,
-            reply_markup=cal_keyboard,
+            reply_markup=calendar_keyboard,
         )
         return self.CONTROL_STATE
 
@@ -148,13 +150,13 @@ class CalenderComponent:
         query = update.callback_query
         _, _, year, month, _ = query.data.split(";")
 
-        cal_keyboard = self.create_calendar(int(year), int(month))
+        calendar_keyboard = self.create_calendar(int(year), int(month))
 
         await query.answer()
         await query.edit_message_text(
             text=self.opening_message,
             parse_mode=ParseMode.HTML,
-            reply_markup = cal_keyboard
+            reply_markup=calendar_keyboard,
         )
         
         return self.CONTROL_STATE
@@ -165,14 +167,13 @@ class CalenderComponent:
         _, _, year, month, day = query.data.split(";")
 
         calendar_date = f"{year}-{month:>02}-{day:>02}"
-        context.user_data["calendar_date"] = calendar_date
-
+        # context.user_data["calendar_date"] = calendar_date
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Ok", callback_data=f"calendar-date={calendar_date}")]])
 
         await query.answer()
         await query.edit_message_text(
             text=self.validation_message.format(date=calendar_date),
             parse_mode=ParseMode.HTML,
-            reply_markup=keyboard
+            reply_markup=keyboard,
         )
         return self.END_STATE
