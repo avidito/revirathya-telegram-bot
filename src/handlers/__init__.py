@@ -19,8 +19,8 @@ class Conversation:
 
 
 # Register
-def register_conversation(app: Application, tz_str: str):
-    tz = pytz.timezone(tz_str)
+def register_conversation(app: Application):
+    tz = pytz.timezone("Asia/Jakarta")
     reply_h = BotReplyMarkupHelper()
 
     conversation = Conversation(reply_h, tz)

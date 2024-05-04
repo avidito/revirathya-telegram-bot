@@ -19,8 +19,8 @@ if __name__ == "__main__":
     logger = get_logger()
 
     # Setup
-    app = get_app(token = CONFIG.API_TOKEN.get_secret_value())
-    register_conversation(app, tz_str = CONFIG.TIMEZONE)
+    app = get_app(token = CONFIG.BOT_API_TOKEN.get_secret_value())
+    register_conversation(app)
 
     # Run
     app.run_polling()

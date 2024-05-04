@@ -3,7 +3,6 @@ from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
-    API_TOKEN: SecretStr = Field(alias="API_TOKEN")
-    TIMEZONE: str = Field(alias="TIMEZONE")
+    BOT_API_TOKEN: SecretStr = Field(alias="BOT_API_TOKEN")
 
 CONFIG = Config()
