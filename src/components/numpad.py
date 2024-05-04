@@ -138,6 +138,7 @@ class NumpadComponent:
     # Private - Handlers
     async def __init_conv(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         query = update.callback_query
+        context.user_data["tmp_numpad"] = 0
         numpad_keyboard = self.create_numpad(amount=0)
 
         await query.answer()
@@ -159,14 +160,18 @@ class NumpadComponent:
         query = update.callback_query
         _, _, amount = query.data.split(";")
 
-        numpad_keyboard = self.create_numpad(int(amount))
-
         await query.answer()
-        await query.edit_message_text(
-            text=self.opening_message,
-            parse_mode=ParseMode.HTML,
-            reply_markup=numpad_keyboard,
-        )
+        
+        __amount = int(amount)
+        if(context.user_data["tmp_numpad"] != __amount):
+            context.user_data["tmp_numpad"] = __amount
+            numpad_keyboard = self.create_numpad(__amount)
+
+            await query.edit_message_text(
+                text=self.opening_message,
+                parse_mode=ParseMode.HTML,
+                reply_markup=numpad_keyboard,
+            )
 
         return self.CONTROL_STATE
     
@@ -176,6 +181,7 @@ class NumpadComponent:
 
         _, _, amount = query.data.split(";")
         context.user_data["numpad_amount"] = amount
+        del context.user_data["tmp_numpad"]
 
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Ok", callback_data=f"numpad-amount={str(amount)}")]])
 
