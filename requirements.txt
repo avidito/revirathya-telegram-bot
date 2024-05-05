@@ -1,3 +1,6 @@
+# API
+requests==2.31.0
+
 # Telegram
 python-telegram-bot==21.1.1
 

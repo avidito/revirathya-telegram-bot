@@ -3,9 +3,10 @@ from telegram.ext import (
     ApplicationBuilder,
 )
 
-from src.helper.config import CONFIG
-from src.helper.log import get_logger
+from src.helpers.config import Config
+from src.helpers.log import get_logger
 from src.handlers import register_conversation
+from src.modules import bootstrap_modules
 
 
 # Main
@@ -16,11 +17,14 @@ def get_app(token: str) -> Application:
 
 if __name__ == "__main__":
     # Init
+    C = Config()
     logger = get_logger()
 
     # Setup
-    app = get_app(token = CONFIG.BOT_API_TOKEN.get_secret_value())
-    register_conversation(app)
+    app = get_app(token=C.BOT_API_TOKEN.get_secret_value())
+    usecase = bootstrap_modules(C=C)
+
+    register_conversation(app, usecase)
 
     # Run
     app.run_polling()

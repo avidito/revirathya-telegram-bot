@@ -18,13 +18,16 @@ from telegram.ext import (
 )
 
 from src.components import calendar, numpad
-from src.helper.bot import BotReplyMarkupHelper
+from src.helpers.bot import BotReplyMarkupHelper
+from src.modules.bootstrap import Usecase
 
 
 # Conversation
 class FinanceConversation:
     __reply_h: BotReplyMarkupHelper
     __tz: pytz.timezone
+    __usecase: Usecase
+
     __calendar_c: calendar.CalenderComponent
     __numpad_c: numpad.NumpadComponent
     __template_dir: str
@@ -47,9 +50,10 @@ class FinanceConversation:
         ])
     }
 
-    def __init__(self, reply_h: BotReplyMarkupHelper, tz: pytz.timezone):
+    def __init__(self, reply_h: BotReplyMarkupHelper, tz: pytz.timezone, usecase: Usecase):
         self.__reply_h = reply_h
         self.__tz = tz
+        self.__usecase = usecase
 
         self.__calendar_c = calendar.CalenderComponent()
         self.__numpad_c = numpad.NumpadComponent()
@@ -155,22 +159,19 @@ class FinanceConversation:
 
     async def __input_budget_group(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         query = update.callback_query
-        
+        await query.answer()
+
+        # Parse Callback
         date_str = query.data.split("=")[1]
         context.user_data["data"].append({"key": "date", "label": "Date", "value": date_str})
 
-        # TMP
-        BUDGET_GROUP = [
-            {"label": "Daily", "value": "daily"},
-            {"label": "Monthly", "value": "monthly"},
-            {"label": "Ad Hoc", "value": "ad-hoc"},
-        ]
+        # Get Dim Data
+        budget_groups = await self.__usecase.dim_budget_group_usecase.fetch()
         inline_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton(bg["label"], callback_data=f"budget-group={bg['value']}")]
-            for bg in BUDGET_GROUP
+            [InlineKeyboardButton(bg.budget_group, callback_data=f"budget-group={bg.id};{bg.callback_value}")]
+            for bg in budget_groups
         ])
 
-        await query.answer()
         await query.edit_message_text(
             text = self.__reply_h.render_text(
                 self.__template_dir,
