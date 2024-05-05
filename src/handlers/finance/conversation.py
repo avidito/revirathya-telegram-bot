@@ -158,6 +158,7 @@ class FinanceConversation:
 
 
     async def __input_budget_group(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Callback
         query = update.callback_query
         await query.answer()
 
@@ -166,9 +167,9 @@ class FinanceConversation:
         context.user_data["data"].append({"key": "date", "label": "Date", "value": date_str})
 
         # Get Dim Data
-        budget_groups = await self.__usecase.dim_budget_group_usecase.fetch()
+        budget_groups = await self.__usecase.budget_usecase.get_groups()
         inline_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton(bg.budget_group, callback_data=f"budget-group={bg.id};{bg.callback_value}")]
+            [InlineKeyboardButton(bg.budget_group, callback_data=f"budget-group={bg.id};'{bg.budget_group}'")]
             for bg in budget_groups
         ])
 
@@ -189,23 +190,24 @@ class FinanceConversation:
     
 
     async def __input_budget_type(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Callback
         query = update.callback_query
+        await query.answer()
         
-        budget_group = query.data.split("=")[1]
-        context.user_data["data"].append({"key": "budget-group", "label": "Budget Group", "value": budget_group.capitalize()})
-
-        # TMP
-        BUDGET_TYPE = [
-            {"label": "Food", "value": "food"},
-            {"label": "Transport", "value": "transport"},
-            {"label": "Entertainment", "value": "entertainment"},
-        ]
+        # Parse Callback
+        budget_group_callback = query.data.split("=")[1]
+        budget_group_id, budget_group = budget_group_callback.split(";")
+        budget_group_id = int(budget_group_id)
+        budget_group = budget_group.replace("'", "")
+        context.user_data["data"].append({"key": "budget-group", "label": "Budget Group", "value": budget_group, "id": budget_group_id})
+        
+        # Get Dim Data
+        budget_types = await self.__usecase.budget_usecase.get_types_by_group(budget_group_id)
         inline_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton(bt["label"], callback_data=f"budget-type={bt['value']}")]
-            for bt in BUDGET_TYPE
+            [InlineKeyboardButton(bt.budget_type, callback_data=f"budget-type={bt.id};'{bt.budget_type}'")]
+            for bt in budget_types
         ])
 
-        await query.answer()
         await query.edit_message_text(
             text = self.__reply_h.render_text(
                 self.__template_dir,
@@ -223,12 +225,17 @@ class FinanceConversation:
 
 
     async def __input_description(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Callback
         query = update.callback_query
-        
-        budget_type = query.data.split("=")[1]
-        context.user_data["data"].append({"key": "budget-type", "label": "Budget Type", "value": budget_type.capitalize()})
-
         await query.answer()
+        
+        # Parse Callback
+        budget_type_callback = query.data.split("=")[1]
+        budget_type_id, budget_type = budget_type_callback.split(";")
+        budget_type_id = int(budget_type_id)
+        budget_type = budget_type.replace("'", "")
+        context.user_data["data"].append({"key": "budget-type", "label": "Budget Type", "id": budget_type_id, "value": budget_type})
+
         await query.edit_message_text(
             text = self.__reply_h.render_text(
                 self.__template_dir,
