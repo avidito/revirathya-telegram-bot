@@ -1,0 +1,10 @@
+<b>Finance - Expense (Create)</b>
+
+{% if data -%}
+{{ data }}
+
+{% endif -%}
+{% if confirm == "yes" %}Expense successfully created.
+{%- elif confirm == "no" %}Abort expense creation.
+{%- else %}Are you sure you want to create this expense?
+{%- endif %}
