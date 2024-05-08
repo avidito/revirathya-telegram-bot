@@ -137,60 +137,85 @@ class NumpadComponent:
 
     # Private - Handlers
     async def __init_conv(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        query = update.callback_query
-        context.user_data["tmp_numpad"] = 0
-        numpad_keyboard = self.create_numpad(amount=0)
-
-        await query.answer()
-        await query.edit_message_text(
-            text=self.opening_message,
-            parse_mode=ParseMode.HTML,
-            reply_markup=numpad_keyboard,
-        )
-        return self.CONTROL_STATE
-    
-    async def __trigger_ignore(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Callback
         query = update.callback_query
         await query.answer()
         
+        # Initiate Vars
+        context.user_data["tmp_numpad"] = 0
+
+        # Change Reply Text
+        text = self.opening_message
+        reply_markup = self.create_numpad(amount = 0)
+        await query.edit_message_text(
+            text = text,
+            parse_mode = ParseMode.HTML,
+            reply_markup = reply_markup,
+        )
+
+        # Change State
+        return self.CONTROL_STATE
+    
+    async def __trigger_ignore(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Callback
+        query = update.callback_query
+        await query.answer()
+
+        # Change State
         return self.CONTROL_STATE
 
 
     async def __trigger_edit(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Callback
         query = update.callback_query
-        _, _, amount = query.data.split(";")
-
         await query.answer()
-        
+
+        # Parse Callback
+        _, _, amount = query.data.split(";")
         __amount = int(amount)
-        if(context.user_data["tmp_numpad"] != __amount):
+        
+        # Change Reply Text
+        if (context.user_data["tmp_numpad"] != __amount):
+            text = self.opening_message
+            
             context.user_data["tmp_numpad"] = __amount
-            numpad_keyboard = self.create_numpad(__amount)
+            reply_markup = self.create_numpad(__amount)
 
             await query.edit_message_text(
-                text=self.opening_message,
-                parse_mode=ParseMode.HTML,
-                reply_markup=numpad_keyboard,
+                text = text,
+                parse_mode = ParseMode.HTML,
+                reply_markup = reply_markup,
             )
 
+        # Change State
         return self.CONTROL_STATE
     
 
     async def __trigger_enter(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Callback
         query = update.callback_query
-
-        _, _, amount = query.data.split(";")
-        context.user_data["numpad_amount"] = amount
+        await query.answer()
         del context.user_data["tmp_numpad"]
 
-        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Ok", callback_data=f"numpad-amount={str(amount)}")]])
+        # Parse Callback
+        _, _, amount = query.data.split(";")
 
-        await query.answer()
+        # Edit Keyboard
+        text_params = {
+            "amount": f"{int(amount):_}".replace("_", ".")
+        }
+        text = self.validation_message.format(**text_params)
+        reply_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("Ok", callback_data=f"numpad-amount={amount}")]
+        ])
+
         await query.edit_message_text(
-            text=self.validation_message.format(amount=amount),
-            parse_mode=ParseMode.HTML,
-            reply_markup=keyboard,
+            text = text,
+            parse_mode = ParseMode.HTML,
+            reply_markup = reply_markup,
         )
+
+        # Change State
         return self.END_STATE
 
     

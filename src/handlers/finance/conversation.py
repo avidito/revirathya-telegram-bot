@@ -149,12 +149,16 @@ class FinanceConversation:
         context.user_data["command"] = command
 
         # Change Reply Text
-        text_params = {"params": "date"}
+        text_params = {
+            "params": "date"
+        }
         text = self.__reply_h.render_text(self.__template_dir, "create_input_query_conv", text_params)
+        
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Today", callback_data = f"calendar-date={datetime.now(self.__tz).strftime('%Y-%m-%d')}")],
             [InlineKeyboardButton("Choose Date", callback_data = f"gen-calendar")]
         ])
+        
         await query.edit_message_text(
             text=text,
             parse_mode=ParseMode.HTML,

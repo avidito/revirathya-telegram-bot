@@ -125,55 +125,80 @@ class CalenderComponent:
 
     # Private - Handlers
     async def __init_conv(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Query
         query = update.callback_query
-        
-        year, month = map(int, datetime.now().strftime("%Y-%m").split("-"))
-        calendar_keyboard = self.create_calendar(year, month)
-
         await query.answer()
+        
+        # Initiate Vars
+        year, month = map(int, datetime.now().strftime("%Y-%m").split("-"))
+
+        # Change Reply Text
+        text = self.opening_message
+        reply_markup = self.create_calendar(year, month)
         await query.edit_message_text(
-            text=self.opening_message,
-            parse_mode=ParseMode.HTML,
-            reply_markup=calendar_keyboard,
+            text = text,
+            parse_mode = ParseMode.HTML,
+            reply_markup = reply_markup,
         )
+
+        # Change State
         return self.CONTROL_STATE
 
 
     async def __trigger_ignore(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Query
         query = update.callback_query
         await query.answer()
 
+        # Change State
         return self.CONTROL_STATE
 
 
     async def __trigger_navigation(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Query
         query = update.callback_query
+        await query.answer()
+        
+        # Parse Callback
         _, _, year, month, _ = query.data.split(";")
 
-        calendar_keyboard = self.create_calendar(int(year), int(month))
-
-        await query.answer()
+        # Change Reply Text
+        text = self.opening_message
+        reply_markup = self.create_calendar(int(year), int(month))
         await query.edit_message_text(
-            text=self.opening_message,
-            parse_mode=ParseMode.HTML,
-            reply_markup=calendar_keyboard,
+            text = text,
+            parse_mode = ParseMode.HTML,
+            reply_markup = reply_markup,
         )
         
+        # Change State
         return self.CONTROL_STATE
 
 
     async def __trigger_choose(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Query
         query = update.callback_query
-        _, _, year, month, day = query.data.split(";")
-
-        calendar_date = f"{year}-{month:>02}-{day:>02}"
-        # context.user_data["calendar_date"] = calendar_date
-        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Ok", callback_data=f"calendar-date={calendar_date}")]])
-
         await query.answer()
+        
+        # Parse Callback
+        _, _, year, month, day = query.data.split(";")
+        calendar_date = f"{year}-{month:>02}-{day:>02}"
+
+        # Change Reply Text
+        text_params = {
+            "date": calendar_date
+        }
+        text = self.validation_message.format(**text_params)
+
+        reply_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("Ok", callback_data=f"calendar-date={calendar_date}")]
+        ])
+        
         await query.edit_message_text(
-            text=self.validation_message.format(date=calendar_date),
-            parse_mode=ParseMode.HTML,
-            reply_markup=keyboard,
+            text = text,
+            parse_mode = ParseMode.HTML,
+            reply_markup = reply_markup,
         )
+
+        # Change State
         return self.END_STATE
