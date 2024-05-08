@@ -20,6 +20,7 @@ from telegram.ext import (
 from src.components import calendar, numpad
 from src.helpers.bot import BotReplyMarkupHelper
 from src.modules.bootstrap import Usecase
+from src.domain.expense import FactExpense
 
 from src.handlers.finance.schemas import (
     ExpenseCreate,
@@ -104,7 +105,7 @@ class FinanceConversation:
                     )
                 ],
                 self.STATES["INPUT_CONFIRMATION"]: [
-                    CallbackQueryHandler(self.__echo, pattern = "^confirm=")
+                    CallbackQueryHandler(self.__submit, pattern = "^confirm=")
                 ],
             },
             fallbacks=[
@@ -311,6 +312,7 @@ class FinanceConversation:
         # Edit Reply Text
         text_params = {
             "data": expense_data.to_message(),
+            "confirm": None,
         }
         text = self.__reply_h.render_text(self.__template_dir, "create_input_confirm_conv", text_params)
 
@@ -331,20 +333,30 @@ class FinanceConversation:
         return self.STATES["INPUT_CONFIRMATION"]
     
 
-    async def __echo(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def __submit(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # Answer Callback
         query = update.callback_query
         await query.answer()
         
         # Parse Callback
         _, confirm = query.data.split("=")
-        context.user_data["confirm"] = confirm
+        confirm_flag = confirm == "yes"
         expense_data: ExpenseCreate = context.user_data["data"]
+
+        # Create Data
+        if (confirm_flag):
+            expense_payload = FactExpense(
+                budget_type_id = expense_data.get_budget_type_id(),
+                date = expense_data.date,
+                description = expense_data.description,
+                amount = int(expense_data.amount),
+            )
+            _ = await self.__usecase.expense_usecase.create(expense_payload)
 
         # Edit Reply Text
         text_params = {
             "data": expense_data.to_message(),
-            "confirm": confirm,
+            "confirm": confirm_flag,
         }
         text = self.__reply_h.render_text(self.__template_dir, "create_input_confirm_conv", text_params)
         
@@ -354,8 +366,8 @@ class FinanceConversation:
         )
 
         # Change State
-        del context.user_data["data"]
-        del context.user_data["confirm"]
+        if "data" in context.user_data:
+            del context.user_data["data"]
         return ConversationHandler.END
 
 

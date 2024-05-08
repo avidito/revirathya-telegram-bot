@@ -4,7 +4,7 @@
 {{ data }}
 
 {% endif -%}
-{% if confirm == "yes" %}Expense successfully created.
-{%- elif confirm == "no" %}Abort expense creation.
-{%- else %}Are you sure you want to create this expense?
+{% if confirm is none %}Are you sure you want to create this expense?
+{%- elif not confirm %}Abort expense creation.
+{%- elif confirm %}Expense successfully created.
 {%- endif %}

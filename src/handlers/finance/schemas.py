@@ -14,6 +14,9 @@ class ExpenseCreate(BaseModel):
     def get_budget_group_id(self) -> int:
         return int(self.budget_group.split(";")[0])
     
+    def get_budget_type_id(self) -> int:
+        return int(self.budget_type.split(";")[0])
+    
     def to_message(self) -> str:
         _budget_group = self.budget_group.split(";")[1] if (self.budget_group) else None
         _budget_type = self.budget_type.split(";")[1] if (self.budget_type) else None
