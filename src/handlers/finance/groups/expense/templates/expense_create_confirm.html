@@ -1,0 +1,9 @@
+<b>Finance</b>
+Group: <b>Expense</b>
+
+{{ message }}
+
+{% if confirm is none %}Are you sure you want to add this transaction as expense?
+{%- elif confirm == "no" %}Abort transaction creation as expense.
+{%- elif confirm == "yes" %}Transction successfully created as expense.
+{%- endif %}
