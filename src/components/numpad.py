@@ -1,10 +1,6 @@
 from typing import Optional
 
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import (
     CallbackQueryHandler,
@@ -15,29 +11,50 @@ from telegram.ext import (
 
 
 class NumpadComponent:
-    CONTROL_STATE: Optional[int]
-    END_STATE: Optional[int]
-    PARENT_STATE: Optional[int]
-    opening_message: str
-    validation_message: str
+    """
+    Numpad Component
+
+    Create calendar (and its ConversationHandler) for easier number or amount input based on InlineKeyboard.
+    The implementation are heavily inspired by: https://github.com/unmonoqueteclea/calendar-telegram
+    
+    :params
+        return_state [int]: Return state after conversation end.
+    """
+    STATES: dict = {
+        state: i
+        for i, state in enumerate([
+            "CONTROL",
+            "CHOOSE",
+        ])
+    }
+    msg_opening: str
+    msg_confirm: str
 
     def __init__(self):
-        self.CONTROL_STATE = None
-        self.END_STATE = None
-        self.PARENT_STATE = None
-        self.opening_message = "Please insert number:"
-        self.validation_message = "You select '{amount}'"
+        self.msg_opening = "Please insert number:"
+        self.msg_confirm = "You select '{amount}'"
     
 
     def create_numpad(self, amount: int):
-        # Create Callback Factory
+        """
+        Create Numpad
+
+        Function to Create Numpad InlineKeyboard instance.
+
+        :param
+            amount [int]: Current amount to be displayed.
+        
+        :return
+            InlineKeyboardMarkup. Numpad in format of InlineKeyboard.
+        """
+        # Initialize Callback Factory
         c_factory = self.__create_callback
 
-        # Header
+        # Create: Header
         amount_fmt = f"{amount:_}".replace("_", ".")
         header = [InlineKeyboardButton(amount_fmt, callback_data=c_factory(amount))]
 
-        # Body
+        # Create: Body
         numpad_body = [
             [
                 InlineKeyboardButton(str(d), callback_data=c_factory(amount, addition=str(d), mode="add"))
@@ -56,7 +73,7 @@ class NumpadComponent:
             for r, s in zip(numpad_body, side_operator)
         ]
 
-        # Footer
+        # Create: Footer
         footer = [
             InlineKeyboardButton(" ", callback_data=c_factory(amount)),
             InlineKeyboardButton("0", callback_data=c_factory(amount, addition=str(0), mode="add")),
@@ -64,7 +81,7 @@ class NumpadComponent:
             InlineKeyboardButton("OK", callback_data=c_factory(amount, mode="enter")),
         ]
 
-        # Numpad
+        # Assemble
         numpad_component = InlineKeyboardMarkup([
             header,
             *body,
@@ -76,36 +93,32 @@ class NumpadComponent:
     def create_conversation(
         self,
         pattern: str,
-        control_state: int,
-        end_state: int,
-        after_conv_state: int,
-        fallback_func: callable,
+        return_state: int,
         handler_type: str = "callback-query",
     ):
-        # Init State Params
-        self.CONTROL_STATE = control_state
-        self.END_STATE = end_state
-        self.AFTER_CONV_STATE = after_conv_state
+        """
+        Create ConversationHandler for Interacting with Numpad
 
-        # Init Conversation
+        Create set of Conversation callback and handler to package Numpad component as ready to use functionality.
+        """
+        # Setup Conversation
         entry_point = CallbackQueryHandler(self.__init_conv, pattern=pattern) if (handler_type == "callback-query") else None
         conv_handler = ConversationHandler(
-            entry_points=[entry_point],
-            states={
-                self.CONTROL_STATE: [
+            entry_points = [entry_point],
+            states = {
+                self.STATES["CONTROL"]: [
                     CallbackQueryHandler(self.__trigger_ignore, pattern="^numpad;ignore"),
                     CallbackQueryHandler(self.__trigger_edit, pattern="^numpad;(clear|clear-entry|add)"),
                     CallbackQueryHandler(self.__trigger_enter, pattern="^numpad;enter"),
                 ]
             },
             fallbacks=[
-                CommandHandler("cancel", fallback_func),
+                CommandHandler("cancel", self.__fallback),
             ],
             map_to_parent={
-                self.END_STATE: self.AFTER_CONV_STATE,
+                self.STATES["CHOOSE"]: return_state,
             }
         )
-
         return conv_handler
 
 
@@ -145,7 +158,7 @@ class NumpadComponent:
         context.user_data["tmp_numpad"] = 0
 
         # Change Reply Text
-        text = self.opening_message
+        text = self.msg_opening
         reply_markup = self.create_numpad(amount = 0)
         await query.edit_message_text(
             text = text,
@@ -154,7 +167,7 @@ class NumpadComponent:
         )
 
         # Change State
-        return self.CONTROL_STATE
+        return self.STATES["CONTROL"]
     
     async def __trigger_ignore(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # Answer Callback
@@ -162,7 +175,7 @@ class NumpadComponent:
         await query.answer()
 
         # Change State
-        return self.CONTROL_STATE
+        return self.STATES["CONTROL"]
 
 
     async def __trigger_edit(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -176,7 +189,7 @@ class NumpadComponent:
         
         # Change Reply Text
         if (context.user_data["tmp_numpad"] != __amount):
-            text = self.opening_message
+            text = self.msg_opening
             
             context.user_data["tmp_numpad"] = __amount
             reply_markup = self.create_numpad(__amount)
@@ -188,7 +201,7 @@ class NumpadComponent:
             )
 
         # Change State
-        return self.CONTROL_STATE
+        return self.STATES["CONTROL"]
     
 
     async def __trigger_enter(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -204,9 +217,9 @@ class NumpadComponent:
         text_params = {
             "amount": f"{int(amount):_}".replace("_", ".")
         }
-        text = self.validation_message.format(**text_params)
+        text = self.msg_confirm.format(**text_params)
         reply_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Ok", callback_data=f"numpad-amount={amount}")]
+            [InlineKeyboardButton("OK", callback_data=f"amount={amount}")]
         ])
 
         await query.edit_message_text(
@@ -216,6 +229,16 @@ class NumpadComponent:
         )
 
         # Change State
-        return self.END_STATE
+        return self.STATES["CHOOSE"]
+
+    async def __fallback(self, update: Update, context: ContextTypes):
+        """
+        Cancel and End the Conversation
+        """
+        await update.message.reply_text(
+            "Cancelling: Numpad input. See you later!"
+        )
+
+        return ConversationHandler.END
 
     

@@ -5,6 +5,7 @@ from src.domain.expense import FactExpense
 
 
 class ExpenseAPIRepositoryImpl:
+    """Expense - Repository API Implementation"""
     __url: str
 
     def __init__(self, host: str, port: Optional[int], protocol: str = "http"):

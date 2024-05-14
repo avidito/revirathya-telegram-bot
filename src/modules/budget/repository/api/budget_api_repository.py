@@ -7,7 +7,8 @@ from src.domain.budget import (
 )
 
 
-class BudgetRepositoryImpl:
+class BudgetRepositoryAPIImpl:
+    """Budget - Repository API Implementation"""
     __url: str
 
     def __init__(self, host: str, port: Optional[int], protocol: str = "http"):

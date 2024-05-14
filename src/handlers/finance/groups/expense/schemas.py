@@ -2,7 +2,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-class ExpenseCreate(BaseModel):
+# Expense
+class ConversationExpenseBase(BaseModel):
     date: Optional[str] = Field(default=None)
     budget_group: Optional[str] = Field(default=None)
     budget_type: Optional[str] = Field(default=None)
@@ -33,3 +34,6 @@ class ExpenseCreate(BaseModel):
             if row is not None
         )
         return message
+
+class ConversationExpenseCreate(ConversationExpenseBase):
+    pass
