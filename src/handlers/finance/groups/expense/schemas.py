@@ -25,11 +25,11 @@ class ConversationExpenseBase(BaseModel):
         message = "\n".join(
             row for row in
             [
-                f"<b>Date</b>: {self.date}" if (self.date) else None,
-                f"<b>Budget Group</b>: {_budget_group}" if (_budget_group) else None,
-                f"<b>Budget Type</b>: {_budget_type}" if (_budget_type) else None,
-                f"<b>Description</b>: {self.description}" if (self.description) else None,
-                f"<b>Amount</b>: Rp {int(self.amount):_},00".replace("_", ".") if (self.amount) else None,
+                f"<b>Date</b>: {self.date}" if (self.date is not None) else None,
+                f"<b>Budget Group</b>: {_budget_group}" if (_budget_group is not None) else None,
+                f"<b>Budget Type</b>: {_budget_type}" if (_budget_type is not None) else None,
+                f"<b>Description</b>: {self.description}" if (self.description is not None) else None,
+                f"<b>Amount</b>: Rp {int(self.amount):_},-".replace("_", ".") if (self.amount is not None) else None,
             ]
             if row is not None
         )

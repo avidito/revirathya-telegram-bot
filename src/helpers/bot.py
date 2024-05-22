@@ -1,6 +1,7 @@
 import os
 from typing import Optional
 from jinja2 import Template
+from telegram.ext import CallbackQueryHandler
 
 from src.components import calendar, numpad
 
@@ -44,3 +45,22 @@ class BotReplyHelper:
         # Render Template
         rendered = template.render(**params) if (params) else template.render({})
         return rendered
+    
+    def route_callback_changer(self, handler: CallbackQueryHandler, target: int) -> CallbackQueryHandler:
+        """
+        Change Callback Handler Conversation Route
+
+        Change the target state of defined Callback Query Handler.
+
+        :params
+            handler [CallbackQueryHandler]: Handler that want to be re-route.
+            target [int]: New target state for handler.
+        
+        :return
+            CallbackQueryHandler. Re-route handler.
+        """
+        async def wrapper(*args, **kwargs):
+            _ = await handler(*args, **kwargs)
+            return target
+        
+        return wrapper

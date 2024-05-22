@@ -27,7 +27,6 @@ class FinanceGroups:
         self.exp = groups.FinanceExpenseConversation(reply_h, bud_usecase, exp_usecase)
 
 
-
 class FinanceConversation:
     """
     Finance - Main Conversation
@@ -64,11 +63,17 @@ class FinanceConversation:
         # Initiate Conversation
         conv_handler = ConversationHandler(
             entry_points = [
-                CommandHandler("finance", self.__entry_point),
+                CommandHandler("finance", self.__entry_point_command),
             ],
             states = {
                 self.STATES["INPUT_GROUP"]: [
-                    self.__groups.exp.get_conversation(entry_pattern = "category=expense", return_state = ConversationHandler.END),
+                    self.__groups.exp.get_conversation(
+                        entry_pattern = "^category=expense$",
+                        return_state = ConversationHandler.END,
+                        back_state = self.STATES["INPUT_GROUP"],
+                        back_handler = self.__entry_point_callback,
+                    ),
+                    CallbackQueryHandler(self.__cancel, pattern="^cancel$"),
                 ]
             },
             fallbacks = [
@@ -79,48 +84,69 @@ class FinanceConversation:
     
 
     # Private
-    async def __entry_point(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    def __entry_point(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> dict:
         # Initiate Object
         context.user_data["activity"] = "finance"
 
-        # Send Reply
+        # Set Reply Params
         text = self.__reply_h.render_template(self.TEMPLATE_DIR, "entry_point")
         reply_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Expense", callback_data = "category=expense")]
+            [InlineKeyboardButton("Group: Expense", callback_data = "category=expense")],
+            [InlineKeyboardButton("Cancel", callback_data = "cancel")],
         ])
-        await update.message.reply_text(
-            text = text,
-            parse_mode = ParseMode.HTML,
-            reply_markup = reply_markup,
-        )
+        reply_params = {
+            "text": text,
+            "parse_mode": ParseMode.HTML,
+            "reply_markup": reply_markup,
+        }
+        return reply_params
+
+    async def __entry_point_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Init Base
+        reply_params = self.__entry_point(update, context)
+
+        # Send Reply
+        await update.message.reply_text(**reply_params)
 
         # Change State
         return self.STATES["INPUT_GROUP"]
+    
+    async def __entry_point_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Answer Query
+        query = update.callback_query
+        await query.answer()
 
-    async def __echo(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Init Base
+        reply_params = self.__entry_point(update, context)
+        
+        # Change Reply Text
+        await query.edit_message_text(**reply_params)
+
+        # Change State
+        return self.STATES["INPUT_GROUP"]
+    
+    async def __cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # Answer Callback
         query = update.callback_query
         await query.answer()
 
-        # Parse Callback
-        _, category = query.data.split("=")
-        context.user_data["category"] = category
-
-        # Change Reply Text
-        text = self.__reply_h.render_template(self.TEMPLATE_DIR, "echo", {"callback": category})
+        # Send Reply
+        text = self.__reply_h.render_template(self.TEMPLATE_DIR, "fallback")
         await query.edit_message_text(
             text = text,
             parse_mode = ParseMode.HTML,
         )
 
-        # Change Sate
+        # Change State
         return ConversationHandler.END
-    
+        
     async def __fallback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        # Send Reply
         text = self.__reply_h.render_template(self.TEMPLATE_DIR, "fallback")
         await update.message.reply_text(
             text = text,
             parse_mode = ParseMode.HTML,
         )
 
+        # Change State
         return ConversationHandler.END
