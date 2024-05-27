@@ -16,12 +16,12 @@ class RepositoryAPI:
     :params
         C [Config]: Config from environment variables.
     """
-    budget_repo: budget.BudgetRepositoryAPI
-    expense_db_repo: expense.ExpenseRepositoryAPI
+    budget_repo_api: budget.BudgetRepositoryAPI
+    expense_repo_api: expense.ExpenseRepositoryAPI
 
     def __init__(self, C: Config):
-        self.budget_repo = BudgetRepositoryAPIImpl(host=C.FIN_API_HOSTNAME, port=C.FIN_API_PORT)
-        self.expense_api_repo = ExpenseAPIRepositoryImpl(host=C.FIN_API_HOSTNAME, port=C.FIN_API_PORT)
+        self.budget_repo_api = BudgetRepositoryAPIImpl(host=C.FIN_API_HOSTNAME, port=C.FIN_API_PORT)
+        self.expense_repo_api = ExpenseAPIRepositoryImpl(host=C.FIN_API_HOSTNAME, port=C.FIN_API_PORT)
 
 
 # Usecase
@@ -36,8 +36,8 @@ class Usecase:
     expense_usecase: expense.ExpenseUsecase
 
     def __init__(self, repo_api: RepositoryAPI):
-        self.budget_usecase = BudgetUsecaseImpl(repo_api.budget_repo)
-        self.expense_usecase = ExpenseUsecaseImpl(repo_api.expense_api_repo)
+        self.budget_usecase = BudgetUsecaseImpl(repo_api.budget_repo_api)
+        self.expense_usecase = ExpenseUsecaseImpl(repo_api.expense_repo_api)
 
 
 # Bootstrap

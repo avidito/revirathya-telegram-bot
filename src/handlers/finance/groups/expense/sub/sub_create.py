@@ -1,5 +1,6 @@
 import pytz
 from datetime import datetime
+from typing import Coroutine
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
@@ -66,7 +67,7 @@ class FinanceExpenseCreateConversation:
         entry_pattern: str,
         return_state: int,
         back_state: int,
-        back_handler: CallbackQueryHandler,
+        back_cour: Coroutine,
     ) -> ConversationHandler:
         """Generate Finance Expense Create Sub Conversation"""
 
@@ -79,35 +80,29 @@ class FinanceExpenseCreateConversation:
                 self.STATES["INPUT_DATE"]: [
                     CallbackQueryHandler(self.__input_budget_group, pattern = "^date="),
                     self.__reply_h.cal_c.create_conversation(pattern = "calendar", return_state = self.STATES["INPUT_DATE"]),
-                    CallbackQueryHandler(self.__cancel, pattern="^cancel$"),
-                    CallbackQueryHandler(self.__reply_h.route_callback_changer(back_handler, self.STATES["BACK"]), pattern="^back$"),
+                    *self.__reply_h.create_back_flow(c_cour = self.__cancel, b_cour = back_cour, b_state = self.STATES["BACK"]),
                 ],
                 self.STATES["INPUT_BUDGET_GROUP"]: [
                     CallbackQueryHandler(self.__input_budget_type, pattern = "^budget-group="),
-                    CallbackQueryHandler(self.__cancel, pattern="^cancel$"),
-                    CallbackQueryHandler(self.__reply_h.route_callback_changer(self.__entry_point, self.STATES["INPUT_DATE"]), pattern="^back$"),
+                    *self.__reply_h.create_back_flow(c_cour = self.__cancel, b_cour = self.__entry_point, b_state = self.STATES["INPUT_DATE"]),
                 ],
                 self.STATES["INPUT_BUDGET_TYPE"]: [
                     CallbackQueryHandler(self.__input_description, pattern = "^budget-type="),
-                    CallbackQueryHandler(self.__cancel, pattern="^cancel$"),
-                    CallbackQueryHandler(self.__reply_h.route_callback_changer(self.__input_budget_group, self.STATES["INPUT_BUDGET_GROUP"]), pattern="^back$"),
+                    *self.__reply_h.create_back_flow(c_cour = self.__cancel, b_cour = self.__input_budget_group, b_state = self.STATES["INPUT_BUDGET_GROUP"]),
                 ],
                 self.STATES["INPUT_DESCRIPTION"]: [
                     MessageHandler(filters.Regex(".*"), self.__input_amount_message),
                     CallbackQueryHandler(self.__input_amount_callback, pattern="^message="),
-                    CallbackQueryHandler(self.__cancel, pattern="^cancel$"),
-                    CallbackQueryHandler(self.__reply_h.route_callback_changer(self.__input_budget_type, self.STATES["INPUT_BUDGET_TYPE"]), pattern="^back$"),
+                    *self.__reply_h.create_back_flow(c_cour = self.__cancel, b_cour = self.__input_budget_type, b_state = self.STATES["INPUT_BUDGET_TYPE"]),
                 ],
                 self.STATES["INPUT_AMOUNT"]: [
                     CallbackQueryHandler(self.__input_confirm, pattern = "^amount="),
                     self.__reply_h.num_c.create_conversation(pattern = "numpad", return_state = self.STATES["INPUT_AMOUNT"]),
-                    CallbackQueryHandler(self.__cancel, pattern="^cancel$"),
-                    CallbackQueryHandler(self.__reply_h.route_callback_changer(self.__input_description, self.STATES["INPUT_DESCRIPTION"]), pattern="^back$"),
+                    *self.__reply_h.create_back_flow(c_cour = self.__cancel, b_cour = self.__input_description, b_state = self.STATES["INPUT_DESCRIPTION"]),
                 ],
                 self.STATES["INPUT_CONFIRM"]: [
                     CallbackQueryHandler(self.__submit, pattern = "^confirm="),
-                    CallbackQueryHandler(self.__cancel, pattern="^cancel$"),
-                    CallbackQueryHandler(self.__reply_h.route_callback_changer(self.__input_amount_callback, self.STATES["INPUT_AMOUNT"]), pattern="^back$"),
+                    *self.__reply_h.create_back_flow(c_cour = self.__cancel, b_cour = self.__input_amount_callback, b_state = self.STATES["INPUT_AMOUNT"]),
                 ],
             },
             fallbacks = [
@@ -135,20 +130,14 @@ class FinanceExpenseCreateConversation:
         context.user_data["data"] = ConversationExpenseCreate()
 
         # Change Reply Text
-        text_params = {
+        text = self.__reply_h.render_template(self.__template_dir, "expense_create_entry_point", {
             "query": "date"
-        }
-        text = self.__reply_h.render_template(self.__template_dir, "expense_create_entry_point", text_params)
-        
+        })
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Today", callback_data=f"date={datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y-%m-%d')}")],
             [InlineKeyboardButton("Choose with Calendar", callback_data="calendar")],
-            [
-                InlineKeyboardButton("Cancel", callback_data="cancel"),
-                InlineKeyboardButton("Back", callback_data="back"),
-            ]
+            self.__reply_h.create_back_flow_keyboard_button(),
         ])
-
         await query.edit_message_text(
             text = text,
             parse_mode = ParseMode.HTML,
@@ -178,25 +167,19 @@ class FinanceExpenseCreateConversation:
         context.user_data["data"] = expense_data
 
         # Change Reply Text
-        text_params = {
+        budget_groups = await self.__bud_usecase.get_groups()
+        
+        text = self.__reply_h.render_template(self.__template_dir, "expense_create_input", {
             "message": expense_data.to_message(),
             "query": "budget group",
-        }
-        text = self.__reply_h.render_template(self.__template_dir, "expense_create_input", text_params)
-
-        budget_groups = await self.__bud_usecase.get_groups()
-        budget_group_markup = [
-            [InlineKeyboardButton(bg.budget_group, callback_data = f"budget-group={bg.id};{bg.budget_group}")]
-            for bg in budget_groups
-        ]
+        })
         reply_markup = InlineKeyboardMarkup([
-            *budget_group_markup,
-            [
-                InlineKeyboardButton("Cancel", callback_data="cancel"),
-                InlineKeyboardButton("Back", callback_data="back"),
-            ]
+            *[
+                [InlineKeyboardButton(bg.budget_group, callback_data = f"budget-group={bg.id};{bg.budget_group}")]
+                for bg in budget_groups
+            ],
+            self.__reply_h.create_back_flow_keyboard_button(),
         ])
-
         await query.edit_message_text(
             text = text,
             parse_mode = ParseMode.HTML,
@@ -226,25 +209,19 @@ class FinanceExpenseCreateConversation:
         context.user_data["data"] = expense_data
 
         # Change Reply Text
-        text_params = {
+        budget_types = await self.__bud_usecase.get_types_by_group(budget_group_id = expense_data.get_budget_group_id())
+        
+        text = self.__reply_h.render_template(self.__template_dir, "expense_create_input", {
             "message": expense_data.to_message(),
             "query": "budget type",
-        }
-        text = self.__reply_h.render_template(self.__template_dir, "expense_create_input", text_params)
-
-        budget_types = await self.__bud_usecase.get_types_by_group(budget_group_id = expense_data.get_budget_group_id())
-        budget_types_markup = [
-            [InlineKeyboardButton(bt.budget_type, callback_data = f"budget-type={bt.id};{bt.budget_type}")]
-            for bt in budget_types
-        ]
+        })
         reply_markup = InlineKeyboardMarkup([
-            *budget_types_markup,
-            [
-                InlineKeyboardButton("Cancel", callback_data="cancel"),
-                InlineKeyboardButton("Back", callback_data="back"),
-            ]
+            *[
+                [InlineKeyboardButton(bt.budget_type, callback_data = f"budget-type={bt.id};{bt.budget_type}")]
+                for bt in budget_types
+            ],
+            self.__reply_h.create_back_flow_keyboard_button(),
         ])
-
         await query.edit_message_text(
             text = text,
             parse_mode = ParseMode.HTML,
@@ -274,20 +251,14 @@ class FinanceExpenseCreateConversation:
         context.user_data["data"] = expense_data
 
         # Change Reply Text
-        text_params = {
+        text = self.__reply_h.render_template(self.__template_dir, "expense_create_input", {
             "message": expense_data.to_message(),
             "query": "description",
-        }
-        text = self.__reply_h.render_template(self.__template_dir, "expense_create_input", text_params)
-
+        })
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Skip Description (Empty)", callback_data="message=")],
-            [
-                InlineKeyboardButton("Cancel", callback_data="cancel"),
-                InlineKeyboardButton("Back", callback_data="back"),
-            ]
+            self.__reply_h.create_back_flow_keyboard_button(),
         ])
-
         await query.edit_message_text(
             text = text,
             parse_mode = ParseMode.HTML,
@@ -307,20 +278,14 @@ class FinanceExpenseCreateConversation:
         expense_data.description = description
         context.user_data["data"] = expense_data
         
-        text_params = {
+        text = self.__reply_h.render_template(self.__template_dir, "expense_create_input", {
             "message": expense_data.to_message(),
             "query": "amount",
-        }
-        text = self.__reply_h.render_template(self.__template_dir, "expense_create_input", text_params)
-
+        })
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Custom Amount", callback_data = "numpad")],
-            [
-                InlineKeyboardButton("Cancel", callback_data="cancel"),
-                InlineKeyboardButton("Back", callback_data="back"),
-            ]
+            self.__reply_h.create_back_flow_keyboard_button(),
         ])
-
         reply_params = {
             "text": text,
             "reply_markup": reply_markup,
@@ -379,20 +344,14 @@ class FinanceExpenseCreateConversation:
         context.user_data["data"] = expense_data
 
         # Change Reply Text
-        text_params = {
+        text = self.__reply_h.render_template(self.__template_dir, "expense_create_confirm", {
             "message": expense_data.to_message(),
             "confirm": None,
-        }
-        text = self.__reply_h.render_template(self.__template_dir, "expense_create_confirm", text_params)
-
+        })
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Submit", callback_data = f"confirm=yes")],
-            [
-                InlineKeyboardButton("Cancel", callback_data="cancel"),
-                InlineKeyboardButton("Back", callback_data="back"),
-            ]
+            self.__reply_h.create_back_flow_keyboard_button(),
         ])
-
         await query.edit_message_text(
             text = text,
             parse_mode = ParseMode.HTML,
@@ -426,12 +385,10 @@ class FinanceExpenseCreateConversation:
             _ = await self.__exp_usecase.create(expense_payload)
 
         # Change Reply Text
-        text_params = {
+        text = self.__reply_h.render_template(self.__template_dir, "expense_create_confirm", {
             "message": expense_data.to_message(),
             "confirm": confirm,
-        }
-        text = self.__reply_h.render_template(self.__template_dir, "expense_create_confirm", text_params)
-
+        })
         await query.edit_message_text(
             text = text,
             parse_mode = ParseMode.HTML,

@@ -76,7 +76,7 @@ class NumpadComponent:
         # Create: Footer
         footer = [
             InlineKeyboardButton(" ", callback_data=c_factory(amount)),
-            InlineKeyboardButton("0", callback_data=c_factory(amount, addition=str(0), mode="add")),
+            InlineKeyboardButton("0", callback_data=c_factory(amount, addition="0", mode="add")),
             InlineKeyboardButton(" ", callback_data=c_factory(amount)),
             InlineKeyboardButton("OK", callback_data=c_factory(amount, mode="enter")),
         ]
@@ -94,7 +94,6 @@ class NumpadComponent:
         self,
         pattern: str,
         return_state: int,
-        handler_type: str = "callback-query",
     ):
         """
         Create ConversationHandler for Interacting with Numpad
@@ -102,9 +101,10 @@ class NumpadComponent:
         Create set of Conversation callback and handler to package Numpad component as ready to use functionality.
         """
         # Setup Conversation
-        entry_point = CallbackQueryHandler(self.__init_conv, pattern=pattern) if (handler_type == "callback-query") else None
         conv_handler = ConversationHandler(
-            entry_points = [entry_point],
+            entry_points = [
+                CallbackQueryHandler(self.__entry_point, pattern = pattern)
+            ],
             states = {
                 self.STATES["CONTROL"]: [
                     CallbackQueryHandler(self.__trigger_ignore, pattern="^numpad;ignore"),
@@ -149,7 +149,7 @@ class NumpadComponent:
     
 
     # Private - Handlers
-    async def __init_conv(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def __entry_point(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # Answer Callback
         query = update.callback_query
         await query.answer()
@@ -214,14 +214,12 @@ class NumpadComponent:
         _, _, amount = query.data.split(";")
 
         # Edit Keyboard
-        text_params = {
+        text = self.msg_confirm.format(**{
             "amount": f"{int(amount):_}".replace("_", ".")
-        }
-        text = self.msg_confirm.format(**text_params)
+        })
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("OK", callback_data=f"amount={amount}")]
         ])
-
         await query.edit_message_text(
             text = text,
             parse_mode = ParseMode.HTML,
@@ -232,9 +230,6 @@ class NumpadComponent:
         return self.STATES["CHOOSE"]
 
     async def __fallback(self, update: Update, context: ContextTypes):
-        """
-        Cancel and End the Conversation
-        """
         await update.message.reply_text(
             "Cancelling: Numpad input. See you later!"
         )
