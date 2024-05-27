@@ -55,6 +55,7 @@ class FinanceConversation:
     ):
         self.__reply_h = reply_h
         self.__groups = FinanceGroups(reply_h, bud_usecase, exp_usecase)
+        self.__logger = logger
     
 
     # Public
@@ -84,7 +85,7 @@ class FinanceConversation:
     
 
     # Private
-    def __entry_point(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> dict:
+    def __base_entry_point(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> dict:
         # Initiate Object
         context.user_data["activity"] = "finance"
 
@@ -102,10 +103,8 @@ class FinanceConversation:
         return reply_params
 
     async def __entry_point_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        # Init Base
-        reply_params = self.__entry_point(update, context)
-
-        # Send Reply
+        # Setup and Change Reply
+        reply_params = self.__base_entry_point(update, context)
         await update.message.reply_text(**reply_params)
 
         # Change State
@@ -116,10 +115,8 @@ class FinanceConversation:
         query = update.callback_query
         await query.answer()
 
-        # Init Base
-        reply_params = self.__entry_point(update, context)
-        
-        # Change Reply Text
+        # Setup and Change Reply
+        reply_params = self.__base_entry_point(update, context)
         await query.edit_message_text(**reply_params)
 
         # Change State

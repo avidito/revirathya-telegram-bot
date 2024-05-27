@@ -88,11 +88,11 @@ class CalenderComponent:
         ])
         return calendar_component
     
+
     def create_conversation(
             self,
             pattern: str,
             return_state: int,
-            handler_type: str = "callback-query",
         ) -> ConversationHandler:
         """
         Create ConversationHandler for Interacting with Calendar
@@ -100,9 +100,10 @@ class CalenderComponent:
         Create set of Conversation callback and handler to package Calendar component as ready to use functionality.
         """
         # Setup Conversation
-        entry_point = CallbackQueryHandler(self.__init_conv, pattern=pattern) if (handler_type == "callback-query") else None
         conv_handler = ConversationHandler(
-            entry_points = [entry_point],
+            entry_points = [
+                CallbackQueryHandler(self.__entry_point, pattern = pattern)
+            ],
             states = {
                 self.STATES["CONTROL"]: [
                     CallbackQueryHandler(self.__trigger_ignore, pattern="^calendar;ignore"),
@@ -136,7 +137,7 @@ class CalenderComponent:
     
 
     # Private - Handlers
-    async def __init_conv(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def __entry_point(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # Answer Query
         query = update.callback_query
         await query.answer()
@@ -197,15 +198,12 @@ class CalenderComponent:
         calendar_date = f"{year}-{month:>02}-{day:>02}"
 
         # Change Reply Text
-        text_params = {
-            "date": calendar_date
-        }
-        text = self.msg_confirm.format(**text_params)
-
+        text = self.msg_confirm.format(**{
+            "date": calendar_date,
+        })
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("Ok", callback_data=f"date={calendar_date}")]
         ])
-        
         await query.edit_message_text(
             text = text,
             parse_mode = ParseMode.HTML,
@@ -217,9 +215,6 @@ class CalenderComponent:
 
 
     async def __fallback(self, update: Update, context: ContextTypes):
-        """
-        Cancel and End the Conversation
-        """
         await update.message.reply_text(
             "Cancelling: Calendar input. See you later!"
         )

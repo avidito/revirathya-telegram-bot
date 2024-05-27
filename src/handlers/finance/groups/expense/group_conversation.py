@@ -89,7 +89,7 @@ class FinanceExpenseConversation:
                         entry_pattern = "^sub=create$",
                         return_state = self.STATES["END_GROUP"],
                         back_state = self.STATES["INPUT_SUB"],
-                        back_handler =self.__entry_point,
+                        back_cour = self.__entry_point,
                     ),
                     CallbackQueryHandler(self.__cancel, pattern="^cancel$"),
                     CallbackQueryHandler(self.__reply_h.route_callback_changer(back_handler, self.STATES["BACK"]), pattern="^back$"),

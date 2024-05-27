@@ -14,17 +14,22 @@ def get_logger(debug: bool = False) -> logging.Logger:
 
     c_handler = logging.StreamHandler()
     if (debug):
+        logging.basicConfig(level=logging.DEBUG)
         c_handler.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
     else:
+        logging.basicConfig(level=logging.INFO)
         c_handler.setLevel(logging.INFO)
+        logger.setLevel(logging.INFO)
     
-    c_format = logging.Formatter(
-        fmt = "[%(asctime)s] %(name)s - %(levelname)s - %(message)s",
-        datefmt = "%Y-%m-%d %H:%M:%S",
+    logger.addHandler(
+        c_handler.setFormatter(
+            fmt = logging.Formatter(
+                fmt = "[%(asctime)s] %(name)s - %(levelname)s - %(message)s",
+                datefmt = "%Y-%m-%d %H:%M:%S",
+            )
+        )
     )
-    c_handler.setFormatter(c_format)
-    
-    logger.addHandler(c_handler)
 
     # Remove other Logger
     logging.getLogger("httpx").setLevel(logging.WARNING)

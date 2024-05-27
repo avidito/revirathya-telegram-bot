@@ -1,1 +1,1 @@
-from .entry import FinanceExpenseConversation
+from .group_conversation import FinanceExpenseConversation

@@ -23,11 +23,6 @@ class ExpenseAPIRepositoryImpl:
             )
         )
 
-        try:
-            req.raise_for_status()
-        except Exception:
-            raise Exception(expense.model_dump(exclude=("id",), mode="json"))
-
         # Parse Response
         response = req.json()
         fact_expense = FactExpense(**response)

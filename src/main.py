@@ -32,7 +32,6 @@ def main(debug: bool = False):
     register_handlers(app, C, logger)
 
     # Run
-    logger.info("Starting Revirathya Telegram Bot Application")
     app.run_polling()
 
 
